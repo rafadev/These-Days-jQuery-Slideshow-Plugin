@@ -7,9 +7,9 @@
 
 	var init, gotoSlide, stop, start, doTransition, publicMethods;
 
-	// If you have already included Modernizr with a test for CSS Transitions, you can delete this line
-	var Modernizr=function(a,b,c){function A(a,b){var c=a.charAt(0).toUpperCase()+a.substr(1),d=(a+" "+n.join(c+" ")+c).split(" ");return z(d,b)}function z(a,b){for(var d in a)if(k[a[d]]!==c)return b=="pfx"?a[d]:!0;return!1}function y(a,b){return!!~(""+a).indexOf(b)}function x(a,b){return typeof a===b}function w(a,b){return v(prefixes.join(a+";")+(b||""))}function v(a){k.cssText=a}var d="2.0.6",e={},f=!0,g=b.documentElement,h=b.head||b.getElementsByTagName("head")[0],i="modernizr",j=b.createElement(i),k=j.style,l,m=Object.prototype.toString,n="Webkit Moz O ms Khtml".split(" "),o={},p={},q={},r=[],s,t={}.hasOwnProperty,u;!x(t,c)&&!x(t.call,c)?u=function(a,b){return t.call(a,b)}:u=function(a,b){return b in a&&x(a.constructor.prototype[b],c)},o.csstransitions=function(){return A("transitionProperty")};for(var B in o)u(o,B)&&(s=B.toLowerCase(),e[s]=o[B](),r.push((e[s]?"":"no-")+s));v(""),j=l=null,e._version=d,e._domPrefixes=n,e.testProp=function(a){return z([a])},e.testAllProps=A,g.className=g.className.replace(/\bno-js\b/,"")+(f?" js "+r.join(" "):"");return e}(this,this.document);
-
+	// If you have already included Modernizr with a test for CSS Transitions and background-size, you can delete this line
+	var Modernizr=function(a,b,c){function A(a,b){var c=a.charAt(0).toUpperCase()+a.substr(1),d=(a+" "+n.join(c+" ")+c).split(" ");return z(d,b)}function z(a,b){for(var d in a)if(k[a[d]]!==c)return b=="pfx"?a[d]:!0;return!1}function y(a,b){return!!~(""+a).indexOf(b)}function x(a,b){return typeof a===b}function w(a,b){return v(prefixes.join(a+";")+(b||""))}function v(a){k.cssText=a}var d="2.0.6",e={},f=!0,g=b.documentElement,h=b.head||b.getElementsByTagName("head")[0],i="modernizr",j=b.createElement(i),k=j.style,l,m=Object.prototype.toString,n="Webkit Moz O ms Khtml".split(" "),o={},p={},q={},r=[],s,t={}.hasOwnProperty,u;!x(t,c)&&!x(t.call,c)?u=function(a,b){return t.call(a,b)}:u=function(a,b){return b in a&&x(a.constructor.prototype[b],c)},o.backgroundsize=function(){return A("backgroundSize")},o.csstransitions=function(){return A("transitionProperty")};for(var B in o)u(o,B)&&(s=B.toLowerCase(),e[s]=o[B](),r.push((e[s]?"":"no-")+s));v(""),j=l=null,e._version=d,e._domPrefixes=n,e.testProp=function(a){return z([a])},e.testAllProps=A,g.className=g.className.replace(/\bno-js\b/,"")+(f?" js "+r.join(" "):"");return e}(this,this.document);
+	
 	// Initialise plugin
 	init = function (options) {
 		var defaults = {
@@ -17,7 +17,8 @@
 			speed: 1000,
 			fastSpeed: 100,
 			beforeTransition: null,
-			currentClass: 'current'
+			currentClass: 'current',
+			fullscreen: false
 		};
 		return this.each(function () {
 			var $el = $(this), data = $el.data('tdslideshow');
@@ -26,6 +27,44 @@
 				data.animating = false;
 				data.stopped = false;
 				data.options = $.extend(defaults, options);
+				// Go fullscreen?
+				if (data.options.fullscreen){
+					$el.css({width: '100%', height: '100%', position: 'fixed', top: '0', left: '0'});
+					$el.children().each(function(){
+						if(Modernizr.backgroundsize){
+							$(this).replaceWith($('<span>').css({
+								'background-image': "url('"+$(this).attr('src')+"')", 
+								display: 'block', 
+								width: '100%', 
+								height: '100%',
+								'background-size': 'cover',
+								position: 'absolute',
+								top: '0',
+								left: '0',
+								'background-position': '50% 50%'
+							}));
+						} else {
+							var image = $(this);
+							
+							// Fix to remove vertical scrollbar on IE7
+							$('html').css({overflow: 'auto'});
+							
+							$el.css({overflow: 'hidden'});
+							image.css({position: 'absolute', top: '50%', left: '50%'});
+							resizeImage(image);
+							
+							/* Resize active image when window is resized,
+							** all inactive images will be resized before displaying
+							** so as no to trigger a resize for each image when the
+							** window.resized() event is triggered         */
+							$(window).resize(function(){
+								$el.children().not('.current').data({resize: true});
+								resizeImage($el.find('.current'));
+							});
+						}
+					});
+				}
+				
 				data.$children = $el.children();
 				data.currentIndex = 0;
 				data.$current = data.$children.eq(0).addClass(data.options.currentClass);
@@ -116,6 +155,12 @@
 		if (typeof data.options.beforeTransition === 'function') {
 			data.options.beforeTransition.apply(this, [data.currentIndex]);
 		}
+		
+		// Check if the window has been resized
+		if($next.data('resize')){
+			resizeImage($next);
+			$next.data({resize: false});
+		}
 
 		// Do animation
 		data.$current.removeClass(data.options.currentClass);
@@ -151,6 +196,33 @@
 			$el.data('tdslideshow', data);
 		};
 	};
+	
+	resizeImage = function(image) {
+		var 	imgwidth = image.width(), 
+			imgheight = image.height(),
+			winwidth = $(window).width(),
+			winheight = $(window).height(),
+			widthratio = winwidth / imgwidth,
+			heightratio = winheight / imgheight,
+			widthdiff = heightratio * imgwidth,
+			heightdiff = widthratio * imgheight;
+ 
+		if(heightdiff>winheight) {
+			image.css({
+				width: winwidth+'px',
+				height: heightdiff+'px',
+				'margin-left': '-'+winwidth/2+'px', 
+				'margin-top': '-'+heightdiff/2+'px'
+			});
+		} else {
+			image.css({
+				width: widthdiff+'px',
+				height: winheight+'px',
+				'margin-left': '-'+widthdiff/2+'px', 
+				'margin-top': '-'+winheight/2+'px'
+			});
+		}
+	}
 
 	publicMethods = {
 		init: init,
