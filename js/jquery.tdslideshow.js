@@ -18,7 +18,8 @@
 			fastSpeed: 100,
 			beforeTransition: null,
 			currentClass: 'current',
-			fullscreen: false
+			fullscreen: false,
+			shuffle: false
 		};
 		return this.each(function () {
 			var $el = $(this), data = $el.data('tdslideshow');
@@ -30,7 +31,10 @@
 				// Go fullscreen?
 				if (data.options.fullscreen){
 					$el.css({width: '100%', height: '100%', position: 'fixed', top: '0', left: '0'});
+
 					$el.children().each(function(){
+					    var target = $(this);
+
 						if(Modernizr.backgroundsize){
 							$(this).replaceWith($('<span>').css({
 								'background-image': "url('"+$(this).attr('src')+"')", 
@@ -63,7 +67,20 @@
 							});
 						}
 					});
+                    
 				}
+				
+                // Shuffle
+                if (data.options.shuffle){
+                    var objects = [];
+                    $el.children().each(function(){
+                        objects.push($(this).css({'display': 'none'}).detach());
+                    });
+                    for(var j, x, i = objects.length; i; j = parseInt(Math.random() * i), x = objects[--i], objects[i] = objects[j], objects[j] = x);
+                    
+                    // Insert the images back in the DOM
+                    $(objects).each(function(){$(this).appendTo($el).show();});
+                }
 				
 				data.$children = $el.children();
 				data.currentIndex = 0;
@@ -242,4 +259,5 @@
 	};
 
 }(jQuery));
+
 
